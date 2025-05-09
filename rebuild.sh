@@ -4,7 +4,7 @@
 current_dir=$(pwd)
 
 # Navigate to the project directory
-cd /home/kurosh/repos/mavlink_example || { echo "Failed to change directory"; exit 1; }
+# cd /home/kurosh/repos/mavlink_example || { echo "Failed to change directory"; exit 1; }
 
 # Remove the build directory if it exists
 rm -rf build

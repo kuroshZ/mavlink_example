@@ -283,6 +283,28 @@ void MavlinkClient::set_gimbal_attitude(float pitch, float yaw)
     send_mavlink_message(msg);
 }
 
+
+void MavlinkClient::do_mount_configure()
+{
+    mavlink_message_t msg;
+    mavlink_command_long_t cmd;
+    cmd.confirmation = 0;
+    cmd.target_system = target_sys_id_;
+    cmd.target_component = target_comp_id_;
+    cmd.command = MAV_CMD_DO_MOUNT_CONFIGURE;
+    cmd.param1 = MAV_MOUNT_MODE_MAVLINK_TARGETING;
+    cmd.param2 = 1.0F;
+    cmd.param3 = 1.0F;
+    cmd.param4 = 1.0F;
+    cmd.param5 = 2.0F;
+    cmd.param6 = 2.0F;
+    cmd.param7 = 2.0F;
+
+
+    mavlink_msg_command_long_encode(own_sys_id_, own_comp_id_, &msg, &cmd);
+    send_mavlink_message(msg);
+}
+
 void MavlinkClient::do_mount(float pitch, float yaw)
 {
 
@@ -316,6 +338,27 @@ void MavlinkClient::send_heartbeat_message(mavlink_heartbeat_t heartbeat)
             std::this_thread::sleep_for(.95s);
         }
     }).detach();
+}
+
+
+void MavlinkClient::set_mount_msg_interval()
+{
+    mavlink_command_long_t cmd{
+        .param1 = static_cast<float>(MAVLINK_MSG_ID_MOUNT_ORIENTATION),
+        .param2 = 3000,
+        .param3 = 0,
+        .param4 = 0,
+        .param5 = 0,
+        .param6 = 0,
+        .param7 = 0,
+        .command = MAV_CMD_SET_MESSAGE_INTERVAL,
+        .target_system = target_sys_id_,
+        .target_component = target_comp_id_,
+        .confirmation = 0,
+    };
+    mavlink_message_t msg{};
+    mavlink_msg_command_long_encode(own_sys_id_, own_comp_id_, &msg, &cmd);
+    send_mavlink_message(msg);
 }
 
 void MavlinkClient::request_gimbal_info()
@@ -443,7 +486,7 @@ void MavlinkClient::start_receiver_serial()
                     target_sys_id_ = msg.sysid;
                     target_comp_id_ = msg.compid;
                     target_set_ = true;
-                    fmt::print("received target sys and targe comp ids: {} , {} ", target_sys_id_, target_comp_id_);
+                    fmt::print("received target sys and targe comp ids: {} , {} \n ", target_sys_id_, target_comp_id_);
                 }
                 handle_message(msg);
             }
@@ -562,13 +605,13 @@ void MavlinkClient::handle_message(const mavlink_message_t &msg)
         auto zoomLevel = cam_settings.zoomLevel;
         auto focusLevel = cam_settings.focusLevel;
         auto time_boot_ms = cam_settings.time_boot_ms;
-        fmt::print("Received cam_settings:\n mode_id: {} \n zoom_level: {} \n focusLevel: {} \n time_boot_ms: {} "
-                   "\n device_id: {}",
-                   cam_settings.mode_id,
-                   zoomLevel,
-                   focusLevel,
-                   time_boot_ms,
-                   cam_settings.camera_device_id);
+        // fmt::print("Received cam_settings:\n mode_id: {} \n zoom_level: {} \n focusLevel: {} \n time_boot_ms: {} "
+        //            "\n device_id: {}",
+        //            cam_settings.mode_id,
+        //            zoomLevel,
+        //            focusLevel,
+        //            time_boot_ms,
+        //            cam_settings.camera_device_id);
 
         //error: cannot bind packed field ‘cam_settings.__mavlink_camera_setting
         // s_t::zoomLevel’ to ‘float&’
@@ -611,6 +654,12 @@ void MavlinkClient::handle_message(const mavlink_message_t &msg)
         break;
     }
     case MAVLINK_MSG_ID_MOUNT_ORIENTATION:
+    {
+        mavlink_mount_orientation_t mount;
+        mavlink_msg_mount_orientation_decode(&msg, &mount);
+        fmt::print("mount rpy: ({},{}, {}) \n", mount.roll, mount.pitch, mount.yaw);
+        break;
+    }
     case MAVLINK_MSG_ID_SYS_STATUS:
     case MAVLINK_MSG_ID_RAW_IMU:
         break;
@@ -659,28 +708,22 @@ int main()
             std::exit(-1);
         }
 
-        std::this_thread::sleep_for(4s);
-        // client.send_param_ext_request_list();
-        // std::this_thread::sleep_for(1s);
+        client.set_mount_msg_interval();
 
-        // client.set_gimbal_encoder_param();
-        fmt::print("requresting gimbal information ... \n");
-        // client.request_gimbal_info();
-
-        // std::this_thread::sleep_for(3s);
-
-        // fmt::print("setting gimbal home ... \n");
-        // client.set_gimbal_home();
-
-        std::this_thread::sleep_for(3s);
-
-
-        fmt::print("\n\n \n setting attitudes ...  \n \n \n");
-        client.do_mount(0.0F, 120.0F);
         std::this_thread::sleep_for(1s);
 
-        fmt::print("\n\n \n setting tracking ...  \n \n \n");
-        client.send_camera_tracking_point(.5, .57, .3);
+
+        fmt::print("\n\n \n setting attitudes 120 ...  \n \n \n");
+        client.do_mount(0.0F, 120.0F);
+        std::this_thread::sleep_for(20s);
+
+        fmt::print("\n\n \n setting attitudes  0...  \n \n \n");
+        client.do_mount(0.0F, 0.0F);
+        std::this_thread::sleep_for(4s);
+        client.do_mount(0.0F, 0.0F);
+
+        // fmt::print("\n\n \n setting tracking ...  \n \n \n");
+        // client.send_camera_tracking_point(.5, .57, .3);
 
         // fmt::print("setting gimbal home ... \n");
         // client.set_gimbal_mode();

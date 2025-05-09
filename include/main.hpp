@@ -46,10 +46,13 @@ public:
     void disconnect();
     void send_param_ext_set();
     void request_gimbal_info();
+    void set_mount_msg_interval();
     // void send_param_ext_read_req_sent();
     void send_zoom_request(float zoom_level);
     void send_param_ext_request_list();
     CommPoro protocol();
+
+    void do_mount_configure();
     void do_mount(float pitch, float yaw);
     void set_gimbal_rate(float pitch, float yaw);
     void set_gimbal_home();
